@@ -7,7 +7,9 @@ from streamlit_folium import st_folium
 import plotly.express as px
 from branca.element import Template, MacroElement
 
-
+def reais(x):
+    val = f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return val
 
 st.set_page_config(layout="wide", page_title="Precificação de Áreas - MDA", page_icon="🏷️")
 
@@ -34,7 +36,7 @@ with col2:
 # Carregar dados
 @st.cache_data
 def carregar_dados():
-    asd = gpd.read_file("dados/precificacao_al.geojson")
+    asd = gpd.read_file("dados/precificacao_al_ii.geojson")
     # Criar indicadores adicionais
     asd["valor_medio"] = (asd["valor_mun_perim"] + asd["valor_mun_area"]) / 2
     return asd
@@ -42,6 +44,17 @@ def carregar_dados():
 gdf = carregar_dados()
 gdf = gdf.to_crs(epsg=4326)
 gdf['nota_insalub_2'] = gdf['nota_insalub_2'].apply(lambda x: 1 if x < 1 else x)
+gdf['valor_medio_car'] = np.where(
+    gdf['area_car_total'] != 0,
+    ((gdf['area_car_total'] / gdf['area_georef']) * gdf['valor_mun_area'])/gdf['num_imoveis'],
+    0
+)
+
+gdf['val_med_car_perim'] = np.where(
+    gdf['num_imoveis'] != 0,
+    gdf['valor_mun_perim'] / gdf['num_imoveis'],
+    0
+)
 
 # Filtros (sidebar)
 st.markdown("""
@@ -62,6 +75,10 @@ st.markdown("""
 
 
 }
+
+    div[data-baseweb="slider"] > div > div {
+        background-color: black !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -75,6 +92,21 @@ criterios = [
     "nota_insalub", "nota_insalub_2", "nota_total_q1", "nota_total_q2",
     "nota_total_q3", "nota_total_q4"
 ]
+criterios_labels = {
+    "valor_medio": "Valor Médio",
+    "valor_mun_perim": "Valor por Perímetro",
+    "valor_mun_area": "Valor por Área",
+    "nota_media": "Nota Média",
+    "nota_veg": "Vegetação",
+    "nota_area": "Área Média dos Lotes CAR",
+    "nota_relevo": "Relevo",
+    "nota_insalub": "Insalubridade (Dengue)",
+    "nota_insalub_2": "Insalubridade Ajustada",
+    "nota_total_q1": "Precipitação - Trimestre 1",
+    "nota_total_q2": "Precipitação - Trimestre 2",
+    "nota_total_q3": "Precipitação - Trimestre 3",
+    "nota_total_q4": "Precipitação - Trimestre 4",
+}
 
 # Define explanations for each criterion
 criterio_explicacao = {
@@ -82,7 +114,7 @@ criterio_explicacao = {
     "nota_area": "Nota relativa à área média de lotes CAR na área do município. Acima de 35ha, entre 15 e 35ha, até 15ha, conforme máximas e mínimas.",
     "nota_relevo": "Nota relativa ao relevo predominante no município.",
     "nota_insalub": "Nota relativa à insalubridade (casos de dengue por município). Distribuída conforme máximos e mínimos gerais.",
-    "nota_insalub2": "Nota relativa à insalubridade ajustada, incluindo incidência de ataques de animais peçonhentos.",
+    "nota_insalub_2": "Nota relativa à insalubridade ajustada, incluindo incidência de ataques de animais peçonhentos.",
     "valor_mun_perim": "Valor total do município em relação ao perímetro total de imóveis CAR, utilizando dados do Quadro II da Tabela de Rendimento e Preço do Anexo I da INSTRUÇÃO NORMATIVA SEI/INCRA.",
     "valor_mun_area": "Valor total do município em relação à área georreferenciável.",
     "nota_media": "Média das notas utilizada para composição do valor final.",
@@ -95,12 +127,14 @@ criterio_explicacao = {
 criterio_sel = st.sidebar.selectbox("Selecione o critério para visualização", options=list(criterio_explicacao.keys()), index=list(criterio_explicacao.keys()).index("nota_media"))
 
 # Display explanation for selected criterion
-st.sidebar.markdown(f"**Critério selecionado: {criterio_sel}**\n\n{criterio_explicacao[criterio_sel]}")
+st.sidebar.markdown(
+    f"**Critério selecionado:** {criterios_labels[criterio_sel]}\n\n"
 
+)
 
 # --- Slider do critério selecionado ---
 crit_min, crit_max = float(gdf[criterio_sel].min()), float(gdf[criterio_sel].max())
-crit_sel = st.sidebar.slider(f"{criterio_sel}", crit_min, crit_max, (crit_min, crit_max))
+crit_sel = st.sidebar.slider(f"{criterios_labels[criterio_sel]}", crit_min, crit_max, (crit_min, crit_max))
 
 # --- Aplicar filtros ---
 filtros = (
@@ -119,10 +153,16 @@ def get_color(value, min_val, max_val):
         g = int(255 * (2 * norm))
         b = int(255 * (1 - 2 * norm))
     else:
-        norm2 = 2 * (norm - 0.5)
-        r = int(255 * norm2)
-        g = int(255 * (1 - norm2))
-        b = 0
+        try:
+            norm2 = 2 * (norm - 0.5)
+            r = int(255 * norm2)
+            g = int(255 * (1 - norm2))
+            b = 0
+        except Exception as e:
+            r= 55
+            g= 110
+            b = 33
+            #print(e, e.__class__)
     return f'#{r:02x}{g:02x}{b:02x}'
 
 # Abas
@@ -176,39 +216,42 @@ Para este critério, foi atribuída nota única (1) a todos os municípios, uma 
 Shapefile de municípios do Brasil e estimativa populacional por município – IBGE
 Dados fundiários e territoriais (CAR, SIGEF, Terras da União, UCs, TIs) – Base de dados Zetta\n
 **Dicionário de dados**\n
-CD_MUN: Código do município (IBGE).
-NM_MUN: Nome do município (IBGE).
-SIGLA_UF: Sigla da unidade federativa (IBGE).
-ckey: Chave composta contendo nome + unidade federativa do município.
-populacao: Numero de indivíduos residentes no município segundo estimativa do IBGE.
-geometry: Coluna de geometrias.
-nota_veg: Nota relativa à vegetação do local. Calculada de acordo com classe
+
+**CD_MUN**: Código do município (IBGE).
+**NM_MUN**: Nome do município (IBGE).
+**SIGLA_UF**: Sigla da unidade federativa (IBGE).
+**ckey**: Chave composta contendo nome + unidade federativa do município.
+**populacao**: Numero de indivíduos residentes no município segundo estimativa do IBGE.
+**geometry**: Coluna de geometrias.
+**nota_veg**: Nota relativa à vegetação do local. Calculada de acordo com classe
 predominante no município (aberta, intermediária e fechada) e nota específica com média de ocorrência de classe no intervalo.
-nota_area: Nota relativa à área média de Lotes CAR na área do município (Acima de 35ha, acima de 15 até 35 ha, até 15 ha), atribuindo-se as notas em cada intervalo de acordo com máximas e mínimas.
-nota relevo: Nota relativa ao relevo predominante no município.
-nota_p_qx: Notas relativas à quantidade de precipitação no município por trimestre (..._q1, ..._q2, ..._q3, ..._q4). Notas distribuídas de acordo com máximas e mínimas gerais.
-nota_insalub: Nota relativa à insalubridade (casos de dengue por município). Notas distribuídas de acordo com máximas e mínimas gerais.
-nota_insalub2: Nota relativa à insalubridade ajustada, incluindo-se incidência de ataque de animais peçonhentos. Notas distribuídas de acordo com máximas e mínimas gerais.
-area_cidade: Área total do município.
-area_georef: Área total georreferenciável do município, excluindo-se: Terras indígenas, Terras da União, Unidades de Conservação, SIGEF.
-percent_area_georef: Percentual de área georreferenciável em relação à área do município.
-num_imoveis: Número de imóveis do CAR presentes no município.
-area_car_total: Área total de imóveis CAR no município.
-area_car_media: Área média de imóveis CAR no município.
-perimetro_total_car: Perímetro somado de todos os imóveis CAR no município.
-perimetro_medio_car: Perímetro médio de imóveis CAR no município.
-area_max_perim: Área máxima alcançável de acordo com perímetro médio. Serve para avaliar a relação média entre perímetro e área dos imóveis do município.
-nota_total_qx: Nota total somada para o trimestre 'x' (...q1, ...q2, etc)
-nota_media: Média das notas utilizada para composição do valor final.
-valor_mun_perim: Valor total do município em relação ao perímetro total de imóveis car, utilizando-se os dados do Quadro II - Tabela de Rendimento e Preço do Anexo I da Instrução Normativa Minuta SEI/INCRA.
-valor_mun_area: Valor total do município em relação à área georreferenciável. </p>
+**nota_area**: Nota relativa à área média de Lotes CAR na área do município (Acima de 35ha, acima de 15 até 35 ha, até 15 ha), atribuindo-se as notas em cada intervalo de acordo com máximas e mínimas.
+**nota relevo**: Nota relativa ao relevo predominante no município.
+**nota_p_qx**: Notas relativas à quantidade de precipitação no município por trimestre (..._q1, ..._q2, ..._q3, ..._q4). Notas distribuídas de acordo com máximas e mínimas gerais.
+**nota_insalub**: Nota relativa à insalubridade (casos de dengue por município). Notas distribuídas de acordo com máximas e mínimas gerais.
+**nota_insalub2**: Nota relativa à insalubridade ajustada, incluindo-se incidência de ataque de animais peçonhentos. Notas distribuídas de acordo com máximas e mínimas gerais.
+**area_cidade**: Área total do município.
+**area_georef**: Área total georreferenciável do município, excluindo-se: Terras indígenas, Terras da União, Unidades de Conservação, SIGEF.
+**percent_area_georef**: Percentual de área georreferenciável em relação à área do município.
+**num_imoveis**: Número de imóveis do CAR presentes no município.
+**area_car_total**: Área total de imóveis CAR no município.
+**area_car_media**: Área média de imóveis CAR no município.
+**perimetro_total_car**: Perímetro somado de todos os imóveis CAR no município.
+**perimetro_medio_car**: Perímetro médio de imóveis CAR no município.
+**area_max_perim**: Área máxima alcançável de acordo com perímetro médio. Serve para avaliar a relação média entre perímetro e área dos imóveis do município.
+**nota_total_qx**: Nota total somada para o trimestre 'x' (...q1, ...q2, etc)
+**nota_media**: Média das notas utilizada para composição do valor final.
+**valor_mun_perim**: Valor total do município em relação ao perímetro total de imóveis car, utilizando-se os dados do Quadro II - Tabela de Rendimento e Preço do Anexo I da Instrução Normativa Minuta SEI/INCRA.
+**valor_mun_area**: Valor total do município em relação à área georreferenciável. </p>
     """, unsafe_allow_html=True)
 
 # Mapa
 with abas[1]:
     col1, col2= st.columns([5,1])
     with col1:
-        st.title("🌍 Mapa Interativo de Precificação", width='content')
+        st.title("🌍 **Mapa de Precificação**", width='content')
+        st.markdown(f"**Critério selecionado:** <u>{criterios_labels[criterio_sel]}</u>\n\n"
+    f"{criterio_explicacao[criterio_sel]}", unsafe_allow_html=True)
         m = folium.Map(
             location=[gdf_filtrado.centroid.y.mean(), gdf_filtrado.centroid.x.mean()],
             zoom_start=9,
@@ -228,12 +271,14 @@ with abas[1]:
             valor_area = f"{row['valor_mun_area']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
             valor_perim = f"{row['valor_mun_perim']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
             tooltip_text = f"""
-            <h4 style='text-align:center;font-weight:bold;'>{row['NM_MUN']}</h4>
+            <h4 style='text-align:center;font-weight:bold;'>{row['mun_nome']}</h4>
             <b>UF:</b> {row['SIGLA_UF']}<br>
             <b>Área Georreferenciável:</b> {row['area_georef']:.2f} ha<br>
             <b>{criterio_sel}:</b> {row[criterio_sel]:.2f}<br>
             <b>Valor Total por Área (R$):</b> {valor_area}<br>
-            <b>Valor Total por Perímetro (R$):</b> {valor_perim}
+            <b>Valor Total por Perímetro (R$):</b> {valor_perim}<br>
+            <b>Valor Médio Por Imóvel (Área): {reais(row['valor_medio_car'])}<br>
+            <b>Valor Médio Por imóvel (Perim): {reais(row['val_med_car_perim'])}<br>
             """
             folium.GeoJson(
                 row["geometry"],
@@ -279,7 +324,7 @@ with abas[1]:
         st_folium(m, width=1500, height=900)
 
     with col2:
-        st.title(f"Stats: {criterio_sel}")
+        st.title(f"Stats: {criterios_labels[criterio_sel]}")
 
         # Estatísticas básicas
 
@@ -307,6 +352,11 @@ with abas[2]:
     col2.metric("Nota Média", f"{gdf_filtrado['nota_media'].mean():.2f}")
     col3.metric("Valor Médio por Perímetro", f"R$ {gdf_filtrado['valor_mun_perim'].mean():,.2f}")
     col4.metric("Valor Médio por Área", f"R$ {gdf_filtrado['valor_mun_area'].mean():,.2f}")
+    st.markdown(
+        f"**Valor Total Perímetro:** {f"R${gdf_filtrado['valor_mun_perim'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")}\n\n"
+        f"**Valor Total Área:** {f"R${gdf_filtrado['valor_mun_area'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")}\n\n"
+
+    )
 
     fig1 = px.histogram(gdf_filtrado, x="nota_media", nbins=15, title="Distribuição da Nota Média")
     st.plotly_chart(fig1, use_container_width=True)
