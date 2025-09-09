@@ -246,7 +246,7 @@ predominante no município (aberta, intermediária e fechada) e nota específica
 **valor_mun_area**: Valor total do município em relação à área georreferenciável. </p>
     """, unsafe_allow_html=True)
 
-    url = "https://raw.githubusercontent.com/victor-arantes/mda-app/main/dados/prec_invra.pdf"
+    url = "https://raw.githubusercontent.com/victor-arantes/mda-app/main/dados/mi_normref_incra_20411255.pdf"
     st.markdown('''
     **Downloads**''')
     st.markdown(f'[📑Minuta de Instrução Normativa de Referência SEI/INCRA – 20411255]({url})')
