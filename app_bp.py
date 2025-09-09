@@ -5,6 +5,7 @@ import folium
 from folium.plugins import Fullscreen
 from streamlit_folium import st_folium
 import plotly.express as px
+import os
 from branca.element import Template, MacroElement
 
 def reais(x):
@@ -244,6 +245,11 @@ predominante no município (aberta, intermediária e fechada) e nota específica
 **valor_mun_perim**: Valor total do município em relação ao perímetro total de imóveis car, utilizando-se os dados do Quadro II - Tabela de Rendimento e Preço do Anexo I da Instrução Normativa Minuta SEI/INCRA.
 **valor_mun_area**: Valor total do município em relação à área georreferenciável. </p>
     """, unsafe_allow_html=True)
+
+    st.markdown(
+        '<a href="static/prec_invra.pdf" target="_blank">📑 Open PDF</a>',
+        unsafe_allow_html=True
+    )
 
 # Mapa
 with abas[1]:
