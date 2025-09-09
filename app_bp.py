@@ -210,12 +210,12 @@ enable_plotting=False
 Fonte: BigQuery - https://console.cloud.google.com/bigquery?p=basedosdados.\n
 **-Área**\n
 A nota referente à área média de lotes foi calculada a partir da média das áreas dos assentamentos do CAR que se encontram total ou parcialmente dentro de cada município, de modo a reduzir desvios estatísticos nas médias.
-Fonte: Base de dados Zetta\n
+Fonte: Base de dados Zetta.\n
 **-Acesso**\n
 Para este critério, foi atribuída nota única (1) a todos os municípios, uma vez que todos possuem acesso por vias rodoviárias.\n
 **- Auxiliares**\n
-Shapefile de municípios do Brasil e estimativa populacional por município – IBGE
-Dados fundiários e territoriais (CAR, SIGEF, Terras da União, UCs, TIs) – Base de dados Zetta\n
+Shapefile de municípios do Brasil e estimativa populacional por município. Fonte: IBGE. \n
+Dados fundiários e territoriais (CAR, SIGEF, Terras da União, UCs, TIs). Fonte: Base de dados Zetta.\n
 **Dicionário de dados**\n
 
 **CD_MUN**: Código do município (IBGE).
