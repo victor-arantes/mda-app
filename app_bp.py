@@ -179,25 +179,25 @@ Para chegar ao valor estimado, foi utilizada a minuta de instrução normativa d
 Esta minuta estabelece critérios e parâmetros de cálculos para preços referenciais para execução de serviços geodésicos/cartográficos, para medição e demarcação de imóveis rurais em áreas sob jurisdição do INCRA.
 A Tabela de Classificação estabelece, na minuta de Portaria, os critérios de pontuação para posterior comparação a tabela de Rendimento e Preço.”\n
 
-A presente entrega tem como resultado um arquivo em formato GeoPackage (.gpkg), contendo os valores discriminados de cada critério estabelecido na minuta, bem como os valores calculados para cada município. A produção dos dados foi realizada em banco de dados espacial PostGIS e em ambiente Python 3.12, visando garantir controle e reprodutibilidade dos resultados.
+A presente entrega tem como resultado um arquivo em formato GeoPackage (.gpkg), contendo os valores discriminados de cada critério estabelecido na minuta, bem como os valores calculados para cada município. A precificação foi feita de acordo com a minuta de instrução normativa de referência SEI/INCRA – 20411255, disponível para download no fim da página. A produção dos dados foi realizada em banco de dados espacial PostGIS e em ambiente Python 3.12, visando garantir controle e reprodutibilidade dos resultados.
 Os resultados aqui apresentados correspondem à entrega piloto para o estado de Alagoas, contemplando os critérios de Vegetação, Relevo, Insalubridade, Clima, Área e Acesso.\n
 
 **Dados Utilizados**\n
 Os dados utilizados para a composição da nota final foram obtidos a partir de APIs e plataformas online como DataSUS, Google Earth Engine (GEE), MapBiomas, BigQuery/INMET, entre outras.\n
-Critérios e Fontes\n
-**Vegetação**\n
+**Critérios e Fontes**\n
+**-Vegetação**\n
 Os dados de vegetação foram obtidos na plataforma MapBiomas, sendo a nota por município calculada com base na vegetação predominante e na vegetação média.
 Fonte: MapBiomas – Coleção 2 (beta) de Mapas Anuais de Cobertura e Uso da Terra do Brasil (10m de resolução espacial).
 Link: Mapbiomas - https://brasil.mapbiomas.org/mapbiomas-cobertura-10m/.\n
-**Insalubridade**\n
+**-Insalubridade**\n
 Os dados de insalubridade foram obtidos na plataforma DataSUS, considerando as ocorrências de dengue registradas entre 2024 e 2025. As notas foram atribuídas a partir da distribuição entre valores máximos e mínimos observados.
 Além disso, foi proposta a inclusão de uma nova métrica, também oriunda do DataSUS, referente a ocorrência de acidentes com animais peçonhentos, visando maior coerência com o contexto de trabalho de campo. Para essa métrica foi criado o campo insalub_2, no qual a distribuição apresentou comportamento mais próximo de uma normal em comparação ao uso exclusivo da dengue.
 Fonte: DataSUS – Transferência de Arquivos - https://datasus.saude.gov.br/transferencia-de-arquivos/#.\n
-**Relevo**\n
+**-Relevo**\n
 O relevo foi classificado a partir de dados raster do Modelo Digital de Elevação SRTM (30m), obtidos via API do Google Earth Engine (GEE). Com base nos dados de altitude, foi calculada a inclinação do terreno, posteriormente classificada segundo a tipologia de Lepsch (1983). As notas foram atribuídas considerando a classe predominante de relevo e a média das classes.
 Fonte: USGS SRTM 30m – Google Earth Engine
 Link: https://developers.google.com/earth-engine/datasets/catalog/USGS_SRTMGL1_003?hl=pt-br.\n
-**Clima**\n
+**-Clima**\n
 Os dados de clima foram obtidos por meio da plataforma BigQuery do INMET, aplicando-se krigagem ordinária sobre séries históricas de estações meteorológicas brasileiras dos últimos 25 anos. As notas foram atribuídas com base na distribuição de temperaturas máximas e mínimas.
 Propõe-se ainda a atribuição de notas por trimestre, permitindo expressar com maior precisão a sazonalidade da pluviosidade.
 Exemplo de implementação da krigagem:\n
@@ -208,12 +208,12 @@ verbose=False,
 enable_plotting=False
 )\n
 Fonte: BigQuery - https://console.cloud.google.com/bigquery?p=basedosdados.\n
-**Área**\n
+**-Área**\n
 A nota referente à área média de lotes foi calculada a partir da média das áreas dos assentamentos do CAR que se encontram total ou parcialmente dentro de cada município, de modo a reduzir desvios estatísticos nas médias.
 Fonte: Base de dados Zetta\n
-**Acesso**\n
+**-Acesso**\n
 Para este critério, foi atribuída nota única (1) a todos os municípios, uma vez que todos possuem acesso por vias rodoviárias.\n
-**Dados Auxiliares**\n
+**- Auxiliares**\n
 Shapefile de municípios do Brasil e estimativa populacional por município – IBGE
 Dados fundiários e territoriais (CAR, SIGEF, Terras da União, UCs, TIs) – Base de dados Zetta\n
 **Dicionário de dados**\n
